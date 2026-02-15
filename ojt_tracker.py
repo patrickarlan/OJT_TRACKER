@@ -32,18 +32,10 @@ else:
     worked_seconds = 0
     last_closed_time = "Never"
 
-# try:
-#     with open(data_file, "r") as f:
-#         lines = f.readlines()
-#         worked_seconds = float(lines[0].strip())
-#         last_closed_time = lines[1].strip()
-# except FileNotFoundError:
-#     worked_seconds = 0
-#     last_closed_time = "Never"
 
 root = tk.Tk()
 root.title("OJT Tracker")
-#root.geometry("400x400")
+
 
 def only_numbers(char):
     return char.isdigit() or char == ""
