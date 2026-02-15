@@ -1,6 +1,7 @@
+import os
+import sys
 from time import strftime
 import tkinter as tk
-import os
 from tkinter import ttk, messagebox
 from datetime import datetime
 
@@ -10,7 +11,14 @@ worked_seconds = 0
 clock_in_time = None
 is_clocked_in = False
 
-data_file = "ojt_data.txt"
+#data_file = "ojt_data.txt"
+if getattr(sys, 'frozen', False):
+    application_path = os.path.dirname(sys.executable)
+else:
+    application_path = os.path.dirname(os.path.abspath(__file__))
+    
+data_file = os.path.join(application_path, "ojt_data.txt")
+
 
 worked_seconds = 0
 last_closed_time = "Never"
