@@ -50,9 +50,9 @@ def only_numbers(char):
 
 vcmd = root.register(only_numbers)
 
-
+#APP SIZE AND CENTERING
 window_width = 400
-window_height = 500
+window_height = 480
 
 screen_width = root.winfo_screenwidth()
 screen_height = root.winfo_screenheight()
@@ -69,13 +69,13 @@ hours_box = tk.Label(
     font=("Arial", 20), 
     bd=2, 
     relief="solid")
-hours_box.pack(pady=40)
+hours_box.pack(pady=30)
 
 time_label = tk.Label(
     root,
     font= ("Arial", 14)
 )
-time_label.pack(pady=10)
+time_label.pack(pady=5)
 
 status_label = tk.Label(root, text="Status: Clocked Out", font=("Arial", 12))
 status_label.pack(pady=5)
@@ -217,7 +217,7 @@ second_entry = tk.Entry(input_frame, width=5, validate="key", validatecommand=(v
 second_entry.grid(row=0, column=4)
 
 add_time_button = tk.Button(root, text="Add Time", command=add_manual_time)
-add_time_button.pack(pady=10)
+add_time_button.pack(pady=2)
 
 # Labels under entries
 tk.Label(input_frame, text="H").grid(row=1, column=0)
