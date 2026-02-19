@@ -1,6 +1,7 @@
 {
-  "remaining_seconds": 1079993,
-  "is_clocked_in": true,
+  "remaining_seconds": 1080000,
+  "is_clocked_in": false,
   "is_on_break": false,
-  "total_hours_required": 300
+  "total_hours_required": 300,
+  "last_closed": "February 19, 2026 at 04:52:12 PM"
 }

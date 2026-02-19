@@ -55,6 +55,18 @@ hours_label.pack(pady=1)
 status_label = ctk.CTkLabel(status_frame, text="Status: Clocked Out", font=ctk.CTkFont(size=14))
 status_label.pack(pady=5)
 
+# Last closed label
+last_closed_frame = ctk.CTkFrame(app, width=200, height=30, corner_radius=10, fg_color="#242424")
+last_closed_frame.place(relx=0.5, rely=0.62, anchor="center")
+
+last_closed_label = ctk.CTkLabel(
+    last_closed_frame, 
+    text="Never closed", 
+    font=ctk.CTkFont(size=15), 
+    text_color="gray"
+)
+last_closed_label.pack(pady=5)
+
 datetime_label = ctk.CTkLabel(
     datetime_frame, 
     text="Date and Time", 
@@ -62,18 +74,15 @@ datetime_label = ctk.CTkLabel(
     text_color="white")
 
 # PROGRESS BAR
-# Suppress IDE warning for RadialProgressbar
 try:
-    radbar2 = at.RadialProgressbar(app, fg='green', parent_bg="#242424", size=(150,150))  # type: ignore
+    radbar2 = at.RadialProgressbar(app, fg='green', parent_bg="#242424", size=(150,150))
     radbar2.place(relx=0.95, rely=0.37, anchor="e")
-    radbar2.set(100)  # Start at 100% since we start with full 300 hours
+    radbar2.set(100)  
 except AttributeError:
-    # Fallback if RadialProgressbar is not available
     print("RadialProgressbar not found, using alternative")
 
 
 # FUNCTION FOR THE BUTTONS  
-
 def button_click():
     messagebox.showinfo("Button Clicked", "You clicked the button!")
 
@@ -86,10 +95,68 @@ def clock_out_button():
 def breakOut():
     breakOut()
     
-    
 def rest_button_click():
     resethrs()
-    
+
+def add_manual_time():
+    """Add manual time from the HH:MM:SS entries"""
+    try:
+        hours_str = manual_time_entry.get().strip()
+        minutes_str = manual_time_entry2.get().strip()
+        seconds_str = manual_time_entry3.get().strip()
+        
+        hours = int(hours_str) if hours_str else 0
+        minutes = int(minutes_str) if minutes_str else 0
+        seconds = int(seconds_str) if seconds_str else 0
+        
+        if hours < 0 or minutes < 0 or seconds < 0:
+            messagebox.showerror("Invalid Input", "Time values cannot be negative!")
+            return
+            
+        if minutes >= 60:
+            messagebox.showerror("Invalid Input", "Minutes must be less than 60!")
+            return
+            
+        if seconds >= 60:
+            messagebox.showerror("Invalid Input", "Seconds must be less than 60!")
+            return
+            
+        if hours == 0 and minutes == 0 and seconds == 0:
+            messagebox.showwarning("No Time Entered", "Please enter the time you want to add!")
+            return
+        
+        manual_seconds = (hours * 3600) + (minutes * 60) + seconds
+        
+        time_display = f"{hours}h {minutes}m {seconds}s"
+        result = messagebox.askyesno(
+            "Confirm Add Time",
+            f"Add {time_display} to your completed hours?\n\nThis will reduce your remaining time by {time_display}."
+        )
+        
+        if result:
+            global remaining_seconds
+            remaining_seconds = max(0, remaining_seconds - manual_seconds)
+            hours_remaining = remaining_seconds / 3600
+            hours_label.configure(text=f"{hours_remaining:.2f}")
+            progress_percentage = (remaining_seconds / (total_hours_required * 3600)) * 100
+            try:
+                radbar2.set(progress_percentage)
+            except:
+                pass
+            save_data()
+            manual_time_entry.delete(0, 'end')
+            manual_time_entry2.delete(0, 'end')
+            manual_time_entry3.delete(0, 'end')
+            hours_completed = (total_hours_required * 3600 - remaining_seconds) / 3600
+            messagebox.showinfo(
+                "Time Added Successfully", 
+                f"Added {time_display} to your completed time!\n\nTotal completed: {hours_completed:.2f} hours\nRemaining: {hours_remaining:.2f} hours"
+            )
+        
+    except ValueError:
+        messagebox.showerror("Invalid Input", "Please enter valid numbers only!\n\nExample: Hours=2, Minutes=30, Seconds=15")
+    except Exception as e:
+        messagebox.showerror("Error", f"An error occurred while adding time: {e}")
 
 def button_click():
     messagebox.showinfo("Button Clicked", "You clicked the button!")
@@ -106,7 +173,7 @@ button3.grid(row=1, column=0, padx=10, pady=10)
 button4 = ctk.CTkButton(button_frame, width=80, text="RESET", command=rest_button_click, fg_color="#9E9E9E", hover_color="#757575")
 button4.grid(row=1, column=1, padx=10, pady=10)
 
-button5 = ctk.CTkButton(button_frame2, width=80, text="ADD TIME", command=button_click, fg_color="#174F7C", hover_color="#2365A8")
+button5 = ctk.CTkButton(button_frame2, width=80, text="ADD TIME", command=add_manual_time, fg_color="#174F7C", hover_color="#2365A8")
 button5.pack(padx=10, pady=10)
 
 #FUNCTIONS
@@ -117,8 +184,7 @@ is_on_break = False
 total_hours_required = 300
 remaining_seconds = total_hours_required * 60 * 60
 
-# Data persistence functions
-def save_data():
+def save_data(include_close_time=False):
     """Save current state to ojt_data.json"""
     try:
         data = {
@@ -127,6 +193,10 @@ def save_data():
             "is_on_break": is_on_break,
             "total_hours_required": total_hours_required
         }
+        
+        if include_close_time:
+            data["last_closed"] = datetime.now().strftime("%B %d, %Y at %I:%M:%S %p")
+            
         with open("ojt_data.json", "w") as f:
             json.dump(data, f, indent=2)
     except Exception as e:
@@ -146,28 +216,30 @@ def load_data():
             is_on_break = data.get("is_on_break", False)
             total_hours_required = data.get("total_hours_required", 300)
             
-            # Update UI to reflect loaded state
+            last_closed = data.get("last_closed", None)
+            if last_closed:
+                last_closed_label.configure(text=f"Last closed: {last_closed}")
+            else:
+                last_closed_label.configure(text="Never closed")
+            
             update_ui_from_data()
             print("Data loaded successfully")
         else:
+            last_closed_label.configure(text="Never closed")
             print("No save file found, starting fresh")
     except Exception as e:
+        last_closed_label.configure(text="Error loading data")
         print(f"Error loading data: {e}")
 
 def update_ui_from_data():
     """Update UI elements to reflect loaded data"""
-    # Update hours display
     hours_remaining = remaining_seconds / 3600
     hours_label.configure(text=f"{hours_remaining:.2f}")
-    
-    # Update progress bar
     progress_percentage = (remaining_seconds / (total_hours_required * 3600)) * 100
     try:
         radbar2.set(progress_percentage)
     except:
         pass
-    
-    # Update status display
     if is_clocked_in:
         if is_on_break:
             status_label.configure(text="Status: On Break", text_color="#FF9800")
@@ -176,6 +248,23 @@ def update_ui_from_data():
     else:
         status_label.configure(text="Status: Clocked Out", text_color="#f44336")
 
+def on_closing():
+    """Handle app closing with confirmation"""
+    result = messagebox.askyesno(
+        "Exit Confirmation", 
+        "Are you sure you want to close the OJT Tracker?\n\nYou will be automatically clocked out and your progress will be saved."
+    )
+    
+    if result:
+        global is_clocked_in, is_on_break
+        if is_clocked_in:
+            is_clocked_in = False
+            is_on_break = False
+            print("Automatically clocked out on app close")
+            
+        save_data(include_close_time=True) 
+        app.destroy()
+
 def update_datetime():
     global remaining_seconds, is_clocked_in, is_on_break
     
@@ -183,30 +272,27 @@ def update_datetime():
     current_time = now.strftime("%B %d, %Y\n%I:%M:%S %p")
     datetime_label.configure(text=current_time)
     
-    # Only countdown when clocked in and not on break
     if is_clocked_in and not is_on_break and remaining_seconds > 0:
-        remaining_seconds -= 1  # Decrease by 1 second only when working
-        hours_remaining = remaining_seconds / 3600  # Convert to hours for display only
+        remaining_seconds -= 1
+        hours_remaining = remaining_seconds / 3600
         hours_label.configure(text=f"{hours_remaining:.2f}")
         
-        # Sync progress bar to show remaining hours (decreases as hours decrease)
         progress_percentage = (remaining_seconds / (total_hours_required * 3600)) * 100
         try:
-            radbar2.set(progress_percentage)  # Progress bar decreases with hours
+            radbar2.set(progress_percentage) 
         except:
             pass
         
-        # Save progress every minute (60 seconds) to avoid too frequent writes
         if remaining_seconds % 60 == 0:
             save_data()
             
     elif remaining_seconds <= 0:
         hours_label.configure(text="0.00")
         try:
-            radbar2.set(0)  # Progress bar at 0 when no hours left
+            radbar2.set(0)  
         except:
             pass
-    # If not clocked in or on break, just update datetime without countdown
+   
         
     datetime_label.after(1000, update_datetime)
 
@@ -218,7 +304,7 @@ def clock_in():
         is_clocked_in = True
         is_on_break = False
         status_label.configure(text="Status: Clocked In", text_color="#4CAF50")
-        save_data()  # Save state change
+        save_data()
     else:
         messagebox.showinfo("Already Clocked In", "You are already clocked in.")
         
@@ -228,7 +314,7 @@ def clock_out():
         is_clocked_in = False
         is_on_break = False
         status_label.configure(text="Status: Clocked Out", text_color="#f44336")
-        save_data()  # Save state change
+        save_data() 
     else:
         messagebox.showinfo("Not Clocked In", "You are not clocked in.")
 
@@ -237,50 +323,70 @@ def breakOut():
     if is_clocked_in and not is_on_break:
         is_on_break = True
         status_label.configure(text="Status: On Break", text_color="#FF9800")
-        save_data()  # Save state change
+        save_data() 
     elif is_on_break:
         is_on_break = False
         status_label.configure(text="Status: Clocked In", text_color="#4CAF50")
-        save_data()  # Save state change
+        save_data() 
     else:
         messagebox.showinfo("Cannot Take Break", "You must be clocked in to take a break.") 
         
 def resethrs():
     global remaining_seconds
     
-    # Always ask for confirmation before resetting
     result = messagebox.askyesno(
         "Confirm Reset", 
         "Are you sure you want to reset your hours to 300.00?\n\nThis action cannot be undone!"
     )
     
-    if result:  # User clicked "Yes"
-        remaining_seconds = total_hours_required * 3600  # Reset to initial total hours in seconds
+    if result:  
+        remaining_seconds = total_hours_required * 3600
         hours_label.configure(text=f"{total_hours_required:.2f}")
         try:
-            radbar2.set(100)  # Reset progress bar to full
+            radbar2.set(100)
         except:
             pass
-        save_data()  # Save reset state
+        save_data()  
         messagebox.showinfo("Reset Complete", "Hours have been reset to 300.00")
-    # If user clicked "No", do nothing (function ends)
 
 # MANUAL TIME ENTRY
-manual_time_entry = ctk.CTkEntry(manual_time_frame, width=35, placeholder_text="HH", justify="center")
+def validate_numeric_input(char):
+    """Validate that input is numeric only"""
+    return char.isdigit() or char == ""
+vcmd = (app.register(validate_numeric_input), '%S')
+
+manual_time_entry = ctk.CTkEntry(
+    manual_time_frame, 
+    width=35, 
+    placeholder_text="HH", 
+    justify="center",
+    validate="key",
+    validatecommand=vcmd
+)
 manual_time_entry.grid(row=0, column=0, padx=3, pady=5)
 
-manual_time_entry2 = ctk.CTkEntry(manual_time_frame, width=35, placeholder_text="MM", justify="center")
+manual_time_entry2 = ctk.CTkEntry(
+    manual_time_frame, 
+    width=35, 
+    placeholder_text="MM", 
+    justify="center",
+    validate="key",
+    validatecommand=vcmd
+)
 manual_time_entry2.grid(row=0, column=1, padx=3, pady=5)
 
-manual_time_entry3 = ctk.CTkEntry(manual_time_frame, width=35, placeholder_text="SS" , justify="center")
+manual_time_entry3 = ctk.CTkEntry(
+    manual_time_frame, 
+    width=35, 
+    placeholder_text="SS", 
+    justify="center",
+    validate="key",
+    validatecommand=vcmd
+)
 manual_time_entry3.grid(row=0, column=2, padx=3, pady=5)
 
-# Load saved data on startup
 load_data()
-
-# Set up proper close handler before starting mainloop
-app.protocol("WM_DELETE_WINDOW", lambda: [save_data(), app.destroy()])
-
+app.protocol("WM_DELETE_WINDOW", on_closing)
 update_datetime()
 app.update()
 app.mainloop()
