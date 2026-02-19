@@ -1,0 +1,26 @@
+{
+  "ui": {
+    "window_width": 400,
+    "window_height": 400,
+    "corner_radius": 10,
+    "frame_color": "#242424",
+    "colors": {
+      "clock_in": "#4CAF50",
+      "clock_out": "#f44336", 
+      "break": "#FF9800",
+      "reset": "#9E9E9E",
+      "add_time": "#2196F3"
+    }
+  },
+  "tracking": {
+    "target_hours": 300.0,
+    "auto_save_interval": 30,
+    "break_reminder_minutes": 60
+  },
+  "logging": {
+    "level": "INFO",
+    "file": "ojt_tracker.log",
+    "max_file_size": "10MB",
+    "backup_count": 3
+  }
+}
