@@ -35,9 +35,9 @@ hours_frame.place(relx=0.1, rely=0.30, anchor="w")
 status_frame = ctk.CTkFrame(app, width=100, height=30, corner_radius=10, fg_color="#242424")
 status_frame.place(relx=0.14, rely=0.55, anchor="w")
 
-button_frame = ctk.CTkFrame(app, width=300, height=100, corner_radius=10, fg_color="#242424")
-button_frame.place(relx=0.05, rely=0.8, anchor="w")
-button_frame.grid_propagate(True)
+# button_frame = ctk.CTkFrame(app, width=300, height=100, corner_radius=10, fg_color="#242424")
+# button_frame.place(relx=0.05, rely=0.8, anchor="w")
+# button_frame.grid_propagate(True)
 
 button_frame2 = ctk.CTkFrame(app, width=100, height=50, corner_radius=10, fg_color="#242424")
 button_frame2.place(relx=0.90, rely=0.74, anchor="e")
@@ -47,6 +47,9 @@ manual_time_frame.place(relx=0.93, rely=0.86, anchor="e")
 
 datetime_frame = ctk.CTkFrame(app, width=150, height=30, corner_radius=10, fg_color="#242424")
 datetime_frame.place(relx=0.14, rely=0.45, anchor="w")
+
+frame3d_in = at.Frame3d(app, bg="#2b2b2b")
+frame3d_in.place(relx=0.05, rely=0.8, anchor="w")
 
 # LABELS
 hours_label = ctk.CTkLabel(hours_frame, text="300.00", font=ctk.CTkFont(size=50, weight="bold"))
@@ -75,7 +78,7 @@ datetime_label = ctk.CTkLabel(
 
 # PROGRESS BAR
 try:
-    radbar2 = at.RadialProgressbar(app, fg='green', parent_bg="#242424", size=(150,150))
+    radbar2 = at.RadialProgressbar3d(app, fg='green', parent_bg="#242424", size=(150,150))
     radbar2.place(relx=0.95, rely=0.37, anchor="e")
     radbar2.set(100)  
 except AttributeError:
@@ -161,16 +164,16 @@ def add_manual_time():
 def button_click():
     messagebox.showinfo("Button Clicked", "You clicked the button!")
     
-button1 = ctk.CTkButton(button_frame, width=80, text="CLOCK IN", command=clock_in_button, fg_color="#4CAF50", hover_color="#45a049")
+button1 = ctk.CTkButton(frame3d_in, width=80, text="CLOCK IN", command=clock_in_button, fg_color="#4CAF50", hover_color="#45a049", corner_radius=0)
 button1.grid(row=0, column=0, padx=10, pady=10)
 
-button2 = ctk.CTkButton(button_frame, width=70, height=30, text="CLOCK OUT", command=clock_out_button, fg_color="#f44336", hover_color="#d32f2f")
+button2 = ctk.CTkButton(frame3d_in, width=70, height=30, text="CLOCK OUT", command=clock_out_button, fg_color="#f44336", hover_color="#d32f2f", corner_radius=0)
 button2.grid(row=0, column=1, padx=10, pady=10)
 
-button3 = ctk.CTkButton(button_frame, width=80, text="BREAK", command=breakOut, fg_color="#FF9800", hover_color="#F57C00")
+button3 = ctk.CTkButton(frame3d_in, width=80, text="BREAK", command=breakOut, fg_color="#FF9800", hover_color="#F57C00", corner_radius=0)
 button3.grid(row=1, column=0, padx=10, pady=10)
 
-button4 = ctk.CTkButton(button_frame, width=80, text="RESET", command=rest_button_click, fg_color="#9E9E9E", hover_color="#757575")
+button4 = ctk.CTkButton(frame3d_in, width=80, text="RESET", command=rest_button_click, fg_color="#9E9E9E", hover_color="#757575", corner_radius=0)
 button4.grid(row=1, column=1, padx=10, pady=10)
 
 button5 = ctk.CTkButton(button_frame2, width=80, text="ADD TIME", command=add_manual_time, fg_color="#174F7C", hover_color="#2365A8")

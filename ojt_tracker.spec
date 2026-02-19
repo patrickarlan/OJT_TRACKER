@@ -2,7 +2,7 @@
 
 
 a = Analysis(
-    ['ojt_tracker.py'],
+    ['ojt_tracker2.py'],
     pathex=[],
     binaries=[],
     datas=[],
@@ -22,7 +22,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='ojt_tracker',
+    name='OJT_Tracker',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
