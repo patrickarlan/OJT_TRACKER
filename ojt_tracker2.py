@@ -18,6 +18,39 @@ from datetime import datetime, date
 # SINGLE INSTANCE CHECK
 LOCK_FILE = "ojt_tracker.lock"
 
+def bring_window_to_front():
+    """Bring existing OJT Tracker window to front on Windows"""
+    try:
+        if os.name == 'nt':  # Windows only
+            import ctypes
+            from ctypes import wintypes
+            
+            # Windows API functions
+            user32 = ctypes.windll.user32
+            kernel32 = ctypes.windll.kernel32
+            
+            # Find window by title
+            def enum_windows_proc(hwnd, lParam):
+                title_buffer = ctypes.create_unicode_buffer(512)
+                user32.GetWindowTextW(hwnd, title_buffer, 512)
+                if "OJT Tracker" in title_buffer.value:
+                    # Found the window, bring it to front
+                    user32.ShowWindow(hwnd, 9)  # SW_RESTORE
+                    user32.SetForegroundWindow(hwnd)
+                    user32.BringWindowToTop(hwnd)
+                    return False  # Stop enumeration
+                return True  # Continue enumeration
+            
+            # Define the callback type
+            EnumWindowsProc = ctypes.WINFUNCTYPE(ctypes.c_bool, wintypes.HWND, wintypes.LPARAM)
+            
+            # Enumerate all windows
+            user32.EnumWindows(EnumWindowsProc(enum_windows_proc), 0)
+            return True
+    except Exception as e:
+        print(f"Error bringing window to front: {e}")
+    return False
+
 def check_single_instance():
     """Check if another instance of the application is already running"""
     if os.path.exists(LOCK_FILE):
@@ -33,21 +66,25 @@ def check_single_instance():
                     result = subprocess.run(['tasklist', '/FI', f'PID eq {old_pid}'], 
                                           capture_output=True, text=True)
                     if old_pid in result.stdout:
-                        messagebox.showerror(
-                            "Already Running", 
-                            "OJT Tracker is already running!\nPlease close the existing instance first."
-                        )
-                        sys.exit(1)
-                else:  # Unix/Linux/Mac
+                        # Process is running, try to bring window to front
+                        time.sleep(0.1)  # Small delay to ensure window is found
+                        if bring_window_to_front():
+                            print("Focused existing OJT Tracker window")
+                        sys.exit(0)  # Exit silently after focusing
+                else:  # Unix/Linux/Mac  
                     os.kill(int(old_pid), 0)
-                    messagebox.showerror(
+                    # On Unix, just show message since window focusing is more complex
+                    messagebox.showinfo(
                         "Already Running", 
-                        "OJT Tracker is already running!\nPlease close the existing instance first."
+                        "OJT Tracker is already running!"
                     )
-                    sys.exit(1)
-            except (subprocess.CalledProcessError, ProcessLookupError, ValueError):
+                    sys.exit(0)
+            except (subprocess.CalledProcessError, ProcessLookupError, ValueError, OSError):
                 # Process not found, remove stale lock file
-                os.remove(LOCK_FILE)
+                try:
+                    os.remove(LOCK_FILE)
+                except:
+                    pass
         except Exception:
             # Error reading lock file, assume it's stale and remove it
             try:
@@ -60,8 +97,8 @@ def check_single_instance():
         with open(LOCK_FILE, 'w') as f:
             f.write(str(os.getpid()))
     except Exception as e:
-        messagebox.showerror("Error", f"Could not create lock file: {e}")
-        sys.exit(1)
+        print(f"Could not create lock file: {e}")
+        # Don't exit on lock file creation failure in case of permission issues
 
 def cleanup_lock_file():
     """Remove the lock file when application exits"""
@@ -87,6 +124,10 @@ ctk.set_default_color_theme("blue")
 
 app = ctk.CTk()
 app.title("OJT Tracker")
+
+# Make sure window appears in front on startup
+app.attributes('-topmost', True)
+app.after(1000, lambda: app.attributes('-topmost', False))
 
 
 #CENTERING THE APP ON THE SCREEN

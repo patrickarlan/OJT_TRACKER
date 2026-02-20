@@ -1,9 +1,8 @@
 {
-  "remaining_seconds": 984433,
-  "is_clocked_in": false,
-  "is_on_break": false,
+  "remaining_seconds": 983432,
+  "is_clocked_in": true,
+  "is_on_break": true,
   "total_hours_required": 300,
   "daily_notes": {},
-  "daily_status": {},
-  "last_closed": "February 20, 2026 at 11:38:48 AM"
+  "daily_status": {}
 }
