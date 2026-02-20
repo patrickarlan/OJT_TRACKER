@@ -6,12 +6,76 @@ import awesometkinter as at
 import json
 import os
 import time
+import sys
+import atexit
 
 from tkcalendar import Calendar
 from tkinter import Toplevel
 from cProfile import label
 from tkinter import ttk, messagebox
 from datetime import datetime, date
+
+# SINGLE INSTANCE CHECK
+LOCK_FILE = "ojt_tracker.lock"
+
+def check_single_instance():
+    """Check if another instance of the application is already running"""
+    if os.path.exists(LOCK_FILE):
+        try:
+            # Check if the process is still running by trying to read the PID
+            with open(LOCK_FILE, 'r') as f:
+                old_pid = f.read().strip()
+            
+            # Try to check if process is still running (Windows/Unix compatible)
+            try:
+                if os.name == 'nt':  # Windows
+                    import subprocess
+                    result = subprocess.run(['tasklist', '/FI', f'PID eq {old_pid}'], 
+                                          capture_output=True, text=True)
+                    if old_pid in result.stdout:
+                        messagebox.showerror(
+                            "Already Running", 
+                            "OJT Tracker is already running!\nPlease close the existing instance first."
+                        )
+                        sys.exit(1)
+                else:  # Unix/Linux/Mac
+                    os.kill(int(old_pid), 0)
+                    messagebox.showerror(
+                        "Already Running", 
+                        "OJT Tracker is already running!\nPlease close the existing instance first."
+                    )
+                    sys.exit(1)
+            except (subprocess.CalledProcessError, ProcessLookupError, ValueError):
+                # Process not found, remove stale lock file
+                os.remove(LOCK_FILE)
+        except Exception:
+            # Error reading lock file, assume it's stale and remove it
+            try:
+                os.remove(LOCK_FILE)
+            except:
+                pass
+    
+    # Create lock file with current process ID
+    try:
+        with open(LOCK_FILE, 'w') as f:
+            f.write(str(os.getpid()))
+    except Exception as e:
+        messagebox.showerror("Error", f"Could not create lock file: {e}")
+        sys.exit(1)
+
+def cleanup_lock_file():
+    """Remove the lock file when application exits"""
+    try:
+        if os.path.exists(LOCK_FILE):
+            os.remove(LOCK_FILE)
+    except:
+        pass
+
+# Register cleanup function to run on exit
+atexit.register(cleanup_lock_file)
+
+# Check for single instance before creating the app
+check_single_instance()
 
 calendar_window = None
 note_window = None
@@ -470,7 +534,8 @@ def on_closing():
             is_on_break = False
             print("Automatically clocked out on app close")
             
-        save_data(include_close_time=True) 
+        save_data(include_close_time=True)
+        cleanup_lock_file()  # Clean up lock file before closing
         app.destroy()
 
 def update_datetime():
