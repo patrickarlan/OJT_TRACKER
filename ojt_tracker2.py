@@ -1,13 +1,22 @@
+from turtle import color
+
 import customtkinter as ctk
 import tkinter as tk
 import awesometkinter as at
 import json
 import os
+import time
 
+from tkcalendar import Calendar
+from tkinter import Toplevel
 from cProfile import label
 from tkinter import ttk, messagebox
-from datetime import datetime
+from datetime import datetime, date
 
+calendar_window = None
+note_window = None
+daily_notes = {}
+daily_status = {}
 
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
@@ -160,7 +169,6 @@ def add_manual_time():
         messagebox.showerror("Invalid Input", "Please enter valid numbers only!\n\nExample: Hours=2, Minutes=30, Seconds=15")
     except Exception as e:
         messagebox.showerror("Error", f"An error occurred while adding time: {e}")
-
 def button_click():
     messagebox.showinfo("Button Clicked", "You clicked the button!")
     
@@ -179,6 +187,199 @@ button4.grid(row=1, column=1, padx=10, pady=10)
 button5 = ctk.CTkButton(button_frame2, width=80, text="ADD TIME", command=add_manual_time, fg_color="#174F7C", hover_color="#2365A8")
 button5.pack(padx=10, pady=10)
 
+
+#CALENDAR
+def open_calendar():
+    
+    global calendar_window
+    
+    if calendar_window is not None and calendar_window.winfo_exists():
+        calendar_window.lift()
+        return
+    
+    calendar_window = Toplevel(app)
+    calendar_window.title("Select Date")
+    calendar_window.geometry("300x350")
+    calendar_window.configure(bg="#2b2b2b")  # Dark background for window
+        
+    app.update_idletasks()
+    x = app.winfo_x()
+    y = app.winfo_y()
+    width = app.winfo_width()
+    calendar_window.geometry(f"+{x + width + 10}+{y}")
+    
+    cal = Calendar(
+        calendar_window, 
+        selectmode='day',
+        background="#2b2b2b",
+        foreground="white",
+        headersbackground="#1f6aa5",
+        weekendbackground="#3b0f6d",
+        weekendforeground="white",
+        selectbackground="#FF00BF",
+        selectforeground="white",
+        normalbackground="#2b2b2b",
+        normalforeground="white",
+        bordercolor="#2b2b2b",
+        othermonthforeground="gray",
+        othermonthbackground="#2c3ab8",
+        othermonthweforeground="gray",
+        othermonthwebackground="#033270"
+    )
+    calendar_window.transient(app)
+    calendar_window.grab_set()
+    cal.pack(pady=20)
+    
+    def open_note_for_selected_date():
+        """Open note window for the currently selected date"""
+        selected_date = cal.get_date()
+        open_note_window(selected_date, cal)
+    
+    def str_to_date(date_str):
+        """Convert MM/dd/yy string to datetime.date object"""
+        try:
+            return datetime.strptime(date_str, "%m/%d/%y").date()
+        except:
+            try:
+                return datetime.strptime(date_str, "%Y-%m-%d").date()
+            except:
+                return datetime.strptime(date_str, "%m/%d/%Y").date()
+    
+    def date_to_str(date_obj):
+        """Convert datetime.date object to MM/dd/yy string"""
+        if isinstance(date_obj, str):
+            return date_obj
+        return date_obj.strftime("%m/%d/%y")
+    
+    def set_status(status, color):
+        selected_date_str = cal.get_date()
+        selected_date_obj = str_to_date(selected_date_str)
+        daily_status[selected_date_str] = status
+        for event_id in cal.get_calevents(selected_date_obj):
+            cal.calevent_remove(event_id)
+        cal.calevent_create(selected_date_obj, status, status)
+        cal.tag_config(status, background=color, foreground="white")
+        save_data()  
+    
+    def clear_status():
+        selected_date_str = cal.get_date()
+        selected_date_obj = str_to_date(selected_date_str)
+        if selected_date_str in daily_status:
+            del daily_status[selected_date_str]
+        for event_id in cal.get_calevents(selected_date_obj):
+            cal.calevent_remove(event_id)
+        save_data()
+    
+    select_button = ctk.CTkButton(calendar_window, text="Select", command=open_note_for_selected_date)
+    select_button.pack(pady=10, padx=10)
+    
+    status_buttons_frame = ctk.CTkFrame(calendar_window, fg_color="transparent")
+    status_buttons_frame.pack(pady=5)
+    
+    present_button = ctk.CTkButton(
+        status_buttons_frame, 
+        text="Present", 
+        width=80, 
+        height=30,
+        command=lambda: set_status("Present", "#4CAF50"),
+        fg_color="#4CAF50",
+        hover_color="#45a049"
+    )
+    present_button.grid(row=0, column=0, padx=5, pady=2)
+    
+    late_button = ctk.CTkButton(
+        status_buttons_frame, 
+        text="Late", 
+        width=80, 
+        height=30,
+        command=lambda: set_status("Late", "#FF9800"),
+        fg_color="#FF9800",
+        hover_color="#F57C00"
+    )
+    late_button.grid(row=0, column=1, padx=5, pady=2)
+    
+    absent_button = ctk.CTkButton(
+        status_buttons_frame, 
+        text="Absent", 
+        width=80, 
+        height=30,
+        command=lambda: set_status("Absent", "#f44336"),
+        fg_color="#f44336",
+        hover_color="#d32f2f"
+    )
+    absent_button.grid(row=1, column=0, padx=5, pady=2)
+    
+    clear_button = ctk.CTkButton(
+        status_buttons_frame, 
+        text="Clear Status", 
+        width=80, 
+        height=30,
+        command=clear_status,
+        fg_color="#9E9E9E",
+        hover_color="#757575"
+    )
+    clear_button.grid(row=1, column=1, padx=5, pady=2)
+
+    for date_str, status in daily_status.items():
+        try:
+            date_obj = str_to_date(date_str)
+            color_map = {
+                "Present": "#4CAF50",
+                "Late": "#FF9800", 
+                "Absent": "#f44336"
+            }
+            color = color_map.get(status, "#4CAF50")
+            cal.calevent_create(date_obj, status, status)
+            cal.tag_config(status, background=color, foreground="white")
+        except Exception as e:
+            print(f"Error loading status for date {date_str}: {e}")
+    
+    def open_note_window(date, calendar):
+        global note_window
+        
+        if note_window is not None and note_window.winfo_exists():
+            note_window.destroy()
+        
+        note_window = Toplevel(calendar_window)
+        note_window.title(f"Notes for {date}")
+        note_window.geometry("300x250")
+        note_window.configure(bg="#2b2b2b") 
+        
+        app.update_idletasks()
+        x = calendar.winfo_rootx()
+        y = calendar.winfo_rooty()
+        width = calendar.winfo_width()
+        note_window.geometry(f"+{x + width + 10}+{y}")
+        
+        note_text = ctk.CTkTextbox(note_window, width=280, height=150)
+        note_text.pack(pady=10, padx=10)
+        
+        existing_note = daily_notes.get(date, "")
+        note_text.insert("0.0", existing_note)
+        
+        def save_note():
+            daily_notes[date] = note_text.get("0.0", "end").strip()
+            save_data() 
+            note_window.destroy()
+    
+        save_button = ctk.CTkButton(note_window, text="Save Note", command=save_note)
+        save_button.pack(pady=5)
+        
+        def delete_note():
+            result = messagebox.askyesno("Delete Note", f"Are you sure you want to delete the note for {date}?")
+            if result:
+                if date in daily_notes:
+                    del daily_notes[date]
+                save_data()
+                messagebox.showinfo("Note Deleted", f"Note for {date} has been deleted.")
+                note_window.destroy()
+        
+        delete_button = ctk.CTkButton(note_window, text="Delete Note", command=delete_note, fg_color="#f44336", hover_color="#d32f2f")
+        delete_button.pack(pady=5)
+
+button6 = at.Button3d(app, width=10, text="CALENDAR", command=open_calendar)
+button6.place(relx=0.62, rely=0.1, anchor="e")
+
 #FUNCTIONS
 
 is_clocked_in = False
@@ -194,7 +395,9 @@ def save_data(include_close_time=False):
             "remaining_seconds": remaining_seconds,
             "is_clocked_in": is_clocked_in,
             "is_on_break": is_on_break,
-            "total_hours_required": total_hours_required
+            "total_hours_required": total_hours_required,
+            "daily_notes": daily_notes,
+            "daily_status": daily_status
         }
         
         if include_close_time:
@@ -207,7 +410,7 @@ def save_data(include_close_time=False):
 
 def load_data():
     """Load saved state from ojt_data.json"""
-    global remaining_seconds, is_clocked_in, is_on_break, total_hours_required
+    global remaining_seconds, is_clocked_in, is_on_break, total_hours_required, daily_notes, daily_status
     
     try:
         if os.path.exists("ojt_data.json"):
@@ -218,6 +421,8 @@ def load_data():
             is_clocked_in = data.get("is_clocked_in", False)
             is_on_break = data.get("is_on_break", False)
             total_hours_required = data.get("total_hours_required", 300)
+            daily_notes = data.get("daily_notes", {})
+            daily_status = data.get("daily_status", {})
             
             last_closed = data.get("last_closed", None)
             if last_closed:
@@ -351,7 +556,7 @@ def resethrs():
             pass
         save_data()  
         messagebox.showinfo("Reset Complete", "Hours have been reset to 300.00")
-
+        
 # MANUAL TIME ENTRY
 def validate_numeric_input(char):
     """Validate that input is numeric only"""

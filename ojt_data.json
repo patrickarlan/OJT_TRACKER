@@ -3,5 +3,16 @@
   "is_clocked_in": false,
   "is_on_break": false,
   "total_hours_required": 300,
-  "last_closed": "February 20, 2026 at 12:09:22 AM"
+  "daily_notes": {
+    "2/16/26": "8:30 - 5:30",
+    "2/18/26": "8:30 - 5:30",
+    "2/19/26": "8:30 - 5:30",
+    "2/20/26": "8:30 - 5:30"
+  },
+  "daily_status": {
+    "2/18/26": "Present",
+    "2/19/26": "Present",
+    "2/20/26": "Present",
+    "2/16/26": "Present"
+  }
 }
