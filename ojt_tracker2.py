@@ -1,5 +1,4 @@
-from turtle import color
-
+import sqlite3
 import customtkinter as ctk
 import tkinter as tk
 import awesometkinter as at
@@ -9,12 +8,16 @@ import time
 import sys
 import atexit
 
+from backend import db_manager as dbm
 from tkcalendar import Calendar
 from tkinter import Toplevel
 from cProfile import label
 from tkinter import ttk, messagebox
 from datetime import datetime, date
+from turtle import color, delay
 
+dbm.init_db()
+current_user = None
 # SINGLE INSTANCE CHECK
 LOCK_FILE = "ojt_tracker.lock"
 
@@ -122,6 +125,113 @@ daily_status = {}
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
 
+def show_login_window():
+    global current_user
+    
+    login_win = ctk.CTk()
+    login_win.title("TIME TRACK - LOGIN")
+    login_win.geometry("360x420")
+    login_win.resizable(False, False)
+    sw = login_win.winfo_screenwidth()
+    sh = login_win.winfo_screenheight()
+    login_win.geometry(f"360x420+{(sw//2) - 180}+{(sh//2) - 210}")
+    
+    mode_var = ctk.StringVar(value="login")
+    ctk.CTkLabel(login_win, text="TIME TRACK",
+                 font=ctk.CTkFont(size=28, weight="bold")).pack(pady=(30, 5))
+    subtitle = ctk.CTkLabel(login_win, text="Sign in your account",
+                            font=ctk.CTkFont(size=13), text_color="gray")
+    subtitle.pack(pady=(0, 20))
+    
+    #input fields
+    fullname_entry = ctk.CTkEntry(login_win, width=260, placeholder_text="Full Name")
+    hours_var = ctk.StringVar(value="300")
+    hours_dropdown = ctk.CTkOptionMenu(
+        login_win,
+        values=["250", "300", "400", "500", "600"],
+        variable=hours_var,
+        width=260
+    )
+    username_entry = ctk.CTkEntry(login_win, width=260, placeholder_text="Username")
+    username_entry.pack(pady=5)
+    password_entry = ctk.CTkEntry(login_win, width=260, placeholder_text="Password", show="*")
+    password_entry.pack(pady=5)
+    
+    message_label = ctk.CTkLabel(login_win, text="", 
+                                 font=ctk.CTkFont(size=12), text_color="#f44336")
+    message_label.pack(pady=5)
+    
+    def do_login():
+        global current_user
+        success, user_data = dbm.login_user(username_entry.get(), password_entry.get())
+        if success:
+            current_user = user_data
+            login_win.destroy()
+            username_entry.delete(0, 'end')
+            password_entry.delete(0, 'end')
+        else:
+            message_label.configure(text="Invalid username or password.", text_color="#f44336")
+            username_entry.delete(0, 'end')
+            password_entry.delete(0, 'end')
+            
+    def do_register():
+        success, msg = dbm.register_user(
+            username_entry.get(),
+            password_entry.get(), 
+            fullname_entry.get(),
+            int(hours_var.get())
+        )
+        if success:
+            message_label.configure(text=msg, text_color="#4CAF50")
+            fullname_entry.delete(0, 'end')
+            username_entry.delete(0, 'end')
+            password_entry.delete(0, 'end')
+        else:
+            message_label.configure(text=msg, text_color="#f44336")
+
+    action_btn = ctk.CTkButton(login_win, width=260, text="Login", command=do_login,
+                               fg_color="#1f6aa5", hover_color="#174F7C")
+    action_btn.pack(pady=10)
+    
+    def toggle_mode():
+        if mode_var.get() == "login":
+            mode_var.set("register")
+            subtitle.configure(text="Create new account")
+            fullname_entry.pack(before=username_entry, pady=5)
+            hours_dropdown.pack(after=fullname_entry, pady=5)
+            action_btn.configure(text="Register", command=do_register)
+            toggle_btn.configure(text="Already have an account? Login")
+            username_entry.delete(0, 'end')
+            password_entry.delete(0, 'end')
+        else:
+            mode_var.set("login")
+            subtitle.configure(text="Sign in to your account")
+            fullname_entry.pack_forget()
+            hours_dropdown.pack_forget()
+            action_btn.configure(text="Login", command=do_login)
+            toggle_btn.configure(text="Don't have an account? Register")
+            
+            fullname_entry.delete(0, 'end')
+            username_entry.delete(0, 'end')
+            password_entry.delete(0, 'end')
+            hours_var.set("300")
+        message_label.configure(text="")
+        
+    toggle_btn = ctk.CTkButton(
+        login_win, text="Don't have an account? Register",
+        fg_color="transparent", hover_color="#333333",
+        command=toggle_mode, font=ctk.CTkFont(size=12)
+        )
+    toggle_btn.pack(pady=5)
+    login_win.bind("<Return>", lambda e: do_login() if mode_var.get() == "login" else do_register())
+    login_win.mainloop()
+    
+    if current_user is None:
+        import sys
+        sys.exit(0)
+    
+show_login_window()    
+
 app = ctk.CTk()
 app.title("OJT Tracker")
 
@@ -165,6 +275,8 @@ datetime_frame.place(relx=0.14, rely=0.45, anchor="w")
 frame3d_in = at.Frame3d(app, bg="#2b2b2b")
 frame3d_in.place(relx=0.05, rely=0.8, anchor="w")
 
+welcome_label = ctk.CTkLabel(app, text="", font=ctk.CTkFont(size=14))
+welcome_label.place(relx=0.76, rely=0.1, anchor="center")
 # LABELS
 hours_label = ctk.CTkLabel(hours_frame, text="300.00", font=ctk.CTkFont(size=50, weight="bold"))
 hours_label.pack(pady=1)
@@ -185,7 +297,7 @@ last_closed_label = ctk.CTkLabel(
 last_closed_label.pack(pady=5)
 
 datetime_label = ctk.CTkLabel(
-    datetime_frame, 
+    datetime_frame,     
     text="Date and Time", 
     font=ctk.CTkFont(size=14, weight="bold"), 
     text_color="white")
@@ -332,13 +444,55 @@ def open_calendar():
         othermonthwebackground="#033270"
     )
     calendar_window.transient(app)
-    calendar_window.grab_set()
+    # calendar_window.grab_set()
     cal.pack(pady=20)
     
     def open_note_for_selected_date():
         """Open note window for the currently selected date"""
         selected_date = cal.get_date()
         open_note_window(selected_date, cal)
+        
+    def open_note_window(date, calendar):
+        global note_window
+        
+        if note_window is not None and note_window.winfo_exists():
+            note_window.destroy()
+        
+        note_window = Toplevel(calendar_window)
+        note_window.title(f"Notes for {date}")
+        note_window.geometry("300x250")
+        note_window.configure(bg="#2b2b2b") 
+        
+        app.update_idletasks()
+        x = calendar.winfo_rootx()
+        y = calendar.winfo_rooty()
+        width = calendar.winfo_width()
+        note_window.geometry(f"+{x + width + 10}+{y}")
+        
+        note_text = ctk.CTkTextbox(note_window, width=280, height=150)
+        note_text.pack(pady=10, padx=10)
+        
+        existing_note = daily_notes.get(date, "")
+        note_text.insert("0.0", existing_note)
+    
+        def save_note():
+            note_content = note_text.get("0.0", "end").strip()
+            daily_notes[date] = note_content
+            dbm.save_note(current_user["id"], date, note_content)
+            note_window.destroy()
+    
+        save_button = ctk.CTkButton(note_window, text="Save Note", command=save_note)
+        save_button.pack(pady=5)
+        
+        def delete_note():
+            result = messagebox.askyesno("Delete Note", f"Delete note for {date}? This action cannot be undone.")
+            if result:
+                if date in daily_notes:
+                    del daily_notes[date]
+                dbm.delete_note(current_user["id"], date)
+                note_window.destroy()
+        delete_button = ctk.CTkButton(note_window, text="Delete Note", command=delete_note, fg_color="#f44336", hover_color="#d32f2f")
+        delete_button.pack(pady=5)
     
     def str_to_date(date_str):
         """Convert MM/dd/yy string to datetime.date object"""
@@ -364,6 +518,7 @@ def open_calendar():
             cal.calevent_remove(event_id)
         cal.calevent_create(selected_date_obj, status, status)
         cal.tag_config(status, background=color, foreground="white")
+        dbm.save_status(current_user["id"], selected_date_str, status)
         save_data()  
     
     def clear_status():
@@ -373,10 +528,11 @@ def open_calendar():
             del daily_status[selected_date_str]
         for event_id in cal.get_calevents(selected_date_obj):
             cal.calevent_remove(event_id)
+        dbm.delete_status(current_user["id"], selected_date_str)
         save_data()
     
-    select_button = ctk.CTkButton(calendar_window, text="Select", command=open_note_for_selected_date)
-    select_button.pack(pady=10, padx=10)
+    # select_button = ctk.CTkButton(calendar_window, text="Select", command=open_note_for_selected_date)
+    # select_button.pack(pady=10, padx=10)
     
     status_buttons_frame = ctk.CTkFrame(calendar_window, fg_color="transparent")
     status_buttons_frame.pack(pady=5)
@@ -439,51 +595,25 @@ def open_calendar():
         except Exception as e:
             print(f"Error loading status for date {date_str}: {e}")
     
-    def open_note_window(date, calendar):
-        global note_window
+    for date_str, status in daily_status.items():
+        try:
+            date_obj = str_to_date(date_str)
+            color_map = {
+                "Present": "#4CAF50",
+                "Late": "#FF9800",
+                "Absent": "#f44336"
+            }
+            color = color_map.get(status, "#4CAF50")
+            cal.calevent_create(date_obj, status, status)
+            cal.tag_config(status, background=color, foreground="white")
+        except Exception as e:
+            print(f"Error loading status for date {date_str}: {e}")
         
-        if note_window is not None and note_window.winfo_exists():
-            note_window.destroy()
-        
-        note_window = Toplevel(calendar_window)
-        note_window.title(f"Notes for {date}")
-        note_window.geometry("300x250")
-        note_window.configure(bg="#2b2b2b") 
-        
-        app.update_idletasks()
-        x = calendar.winfo_rootx()
-        y = calendar.winfo_rooty()
-        width = calendar.winfo_width()
-        note_window.geometry(f"+{x + width + 10}+{y}")
-        
-        note_text = ctk.CTkTextbox(note_window, width=280, height=150)
-        note_text.pack(pady=10, padx=10)
-        
-        existing_note = daily_notes.get(date, "")
-        note_text.insert("0.0", existing_note)
-        
-        def save_note():
-            daily_notes[date] = note_text.get("0.0", "end").strip()
-            save_data() 
-            note_window.destroy()
-    
-        save_button = ctk.CTkButton(note_window, text="Save Note", command=save_note)
-        save_button.pack(pady=5)
-        
-        def delete_note():
-            result = messagebox.askyesno("Delete Note", f"Are you sure you want to delete the note for {date}?")
-            if result:
-                if date in daily_notes:
-                    del daily_notes[date]
-                save_data()
-                messagebox.showinfo("Note Deleted", f"Note for {date} has been deleted.")
-                note_window.destroy()
-        
-        delete_button = ctk.CTkButton(note_window, text="Delete Note", command=delete_note, fg_color="#f44336", hover_color="#d32f2f")
-        delete_button.pack(pady=5)
+    calendar_window.bind("<Double-Button-1>", lambda e: app.after(100, open_note_for_selected_date))
 
+    
 button6 = at.Button3d(app, width=10, text="CALENDAR", command=open_calendar)
-button6.place(relx=0.62, rely=0.1, anchor="e")
+button6.place(relx=0.42, rely=0.14, anchor="e")
 
 #FUNCTIONS
 
@@ -494,55 +624,37 @@ total_hours_required = 300
 remaining_seconds = total_hours_required * 60 * 60
 
 def save_data(include_close_time=False):
-    """Save current state to ojt_data.json"""
-    try:
-        data = {
-            "remaining_seconds": remaining_seconds,
-            "is_clocked_in": is_clocked_in,
-            "is_on_break": is_on_break,
-            "total_hours_required": total_hours_required,
-            "daily_notes": daily_notes,
-            "daily_status": daily_status
-        }
-        
-        if include_close_time:
-            data["last_closed"] = datetime.now().strftime("%B %d, %Y at %I:%M:%S %p")
-            
-        with open("ojt_data.json", "w") as f:
-            json.dump(data, f, indent=2)
-    except Exception as e:
-        print(f"Error saving data: {e}")
+    """Save tracker state to SQLITE database"""
+    dbm.save_tracker_state(
+        current_user["id"],
+        remaining_seconds,
+        is_clocked_in,
+        is_on_break,
+        include_close_time
+    )
 
 def load_data():
-    """Load saved state from ojt_data.json"""
-    global remaining_seconds, is_clocked_in, is_on_break, total_hours_required, daily_notes, daily_status
+    """Load saved state from SQLite database"""
+    global remaining_seconds, is_clocked_in, is_on_break
+    global total_hours_required, daily_notes, daily_status
     
-    try:
-        if os.path.exists("ojt_data.json"):
-            with open("ojt_data.json", "r") as f:
-                data = json.load(f)
-            
-            remaining_seconds = data.get("remaining_seconds", total_hours_required * 3600)
-            is_clocked_in = data.get("is_clocked_in", False)
-            is_on_break = data.get("is_on_break", False)
-            total_hours_required = data.get("total_hours_required", 300)
-            daily_notes = data.get("daily_notes", {})
-            daily_status = data.get("daily_status", {})
-            
-            last_closed = data.get("last_closed", None)
-            if last_closed:
-                last_closed_label.configure(text=f"Last closed: {last_closed}")
-            else:
-                last_closed_label.configure(text="Never closed")
-            
-            update_ui_from_data()
-            print("Data loaded successfully")
+    state = dbm.load_tracker_state(current_user["id"])
+    if state:
+        remaining_seconds = state["remaining_seconds"]
+        is_clocked_in = bool(state["is_clocked_in"])
+        is_on_break = bool(state["is_on_break"])
+        last_closed = state.get("last_closed")
+        if last_closed:
+            last_closed_label.configure(text=f"Last Closed: {last_closed}", text_color="gray")
         else:
-            last_closed_label.configure(text="Never closed")
-            print("No save file found, starting fresh")
-    except Exception as e:
-        last_closed_label.configure(text="Error loading data")
-        print(f"Error loading data: {e}")
+            last_closed_label.configure(text="Never closed", text_color="gray")
+            
+    total_hours_required = current_user.get("total_hours_required", 300)
+    daily_notes = dbm.load_notes(current_user["id"])
+    daily_status = dbm.load_daily_statuses(current_user["id"])
+    update_ui_from_data()
+    welcome_label.configure(text=f"Welcome, {current_user['username']}!")
+    
 
 def update_ui_from_data():
     """Update UI elements to reflect loaded data"""
@@ -563,20 +675,27 @@ def update_ui_from_data():
 
 def on_closing():
     """Handle app closing with confirmation"""
-    result = messagebox.askyesno(
+    global is_clocked_in, is_on_break
+    
+    if is_clocked_in:
+        result = messagebox.askyesno(
         "Exit Confirmation", 
         "Are you sure you want to close the OJT Tracker?\n\nYou will be automatically clocked out and your progress will be saved."
     )
+    else:
+        result = messagebox.askyesno(
+        "Exit Confirmation", 
+        "Are you sure you want to close the OJT Tracker?"
+    )
     
     if result:
-        global is_clocked_in, is_on_break
         if is_clocked_in:
             is_clocked_in = False
             is_on_break = False
             print("Automatically clocked out on app close")
             
         save_data(include_close_time=True)
-        cleanup_lock_file()  # Clean up lock file before closing
+        cleanup_lock_file()
         app.destroy()
 
 def update_datetime():
@@ -630,7 +749,7 @@ def clock_out():
         status_label.configure(text="Status: Clocked Out", text_color="#f44336")
         save_data() 
     else:
-        messagebox.showinfo("Not Clocked In", "You are not clocked in.")
+        messagebox.showinfo("Already Clocked Out", "You are already clocked out.")
 
 def breakOut():
     global is_clocked_in, is_on_break

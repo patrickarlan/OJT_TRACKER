@@ -1,8 +1,18 @@
 {
-  "remaining_seconds": 983432,
-  "is_clocked_in": true,
-  "is_on_break": true,
+  "remaining_seconds": 967449,
+  "is_clocked_in": false,
+  "is_on_break": false,
   "total_hours_required": 300,
-  "daily_notes": {},
-  "daily_status": {}
+  "daily_notes": {
+    "2/20/26": "8:30  - 5:30 WFH",
+    "2/19/26": "8:30 - 5:30",
+    "2/18/26": "8:30 - 5:30 WFH"
+  },
+  "daily_status": {
+    "2/16/26": "Present",
+    "2/18/26": "Present",
+    "2/19/26": "Present",
+    "2/20/26": "Present"
+  },
+  "last_closed": "February 20, 2026 at 05:33:45 PM"
 }
