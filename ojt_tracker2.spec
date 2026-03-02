@@ -6,7 +6,15 @@ a = Analysis(
     pathex=[],
     binaries=[],
     datas=[],
-    hiddenimports=[],
+    hiddenimports=[
+        'customtkinter',
+        'awesometkinter', 
+        'tkcalendar',
+        'ctypes',
+        'ctypes.wintypes',
+        'backend',
+        'backend.db_manager'
+    ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
